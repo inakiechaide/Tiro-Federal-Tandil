@@ -56,7 +56,6 @@ const validateSchedule = (newSchedule, existingSchedules) => {
 export const useScheduleManager = (schedules = [], onSave, onClose) => {
   const [localSchedules, setLocalSchedules] = useState(schedules);
   const [selectedMode, setSelectedMode] = useState('off');
-  const [isAutoMode, setIsAutoMode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [targetTemp, setTargetTemp] = useState(21);
   const [startTime, setStartTime] = useState('08:00');
@@ -95,8 +94,8 @@ export const useScheduleManager = (schedules = [], onSave, onClose) => {
     // Crear nueva programación
     const newSchedule = {
       id: Date.now(),
-      mode: isAutoMode ? 'auto' : selectedMode,
-      targetTemp: isAutoMode ? targetTemp : null,
+      mode: selectedMode, // Usar el modo seleccionado
+      targetTemp: targetTemp,
       startTime,
       endTime,
       days: daysToUse
@@ -127,8 +126,8 @@ export const useScheduleManager = (schedules = [], onSave, onClose) => {
       return;
     }
 
-    // Validar temperatura en modo automático
-    if (isAutoMode && (targetTemp < 15 || targetTemp > 30)) {
+    // Validar temperatura
+    if (targetTemp < 15 || targetTemp > 30) {
       toast({
         title: 'Error',
         description: 'La temperatura debe estar entre 15°C y 30°C',
@@ -144,7 +143,7 @@ export const useScheduleManager = (schedules = [], onSave, onClose) => {
     setLocalSchedules(updatedSchedules);
     onSave(updatedSchedules);
     onClose();
-  }, [selectedDays, selectedMode, isAutoMode, targetTemp, startTime, endTime, localSchedules, validateSchedule, getCurrentDay, onSave, onClose, toast]);
+  }, [selectedDays, selectedMode, targetTemp, startTime, endTime, localSchedules, validateSchedule, getCurrentDay, onSave, onClose, toast]);
 
   // Manejar eliminación de programación
   const handleRemoveSchedule = useCallback((scheduleId) => {
@@ -185,7 +184,6 @@ export const useScheduleManager = (schedules = [], onSave, onClose) => {
   return {
     localSchedules,
     selectedMode,
-    isAutoMode,
     isSubmitting,
     targetTemp,
     startTime,
@@ -193,7 +191,6 @@ export const useScheduleManager = (schedules = [], onSave, onClose) => {
     selectedDays,
     weekDays: WEEK_DAYS,
     setSelectedMode,
-    setIsAutoMode,
     setTargetTemp,
     setStartTime,
     setEndTime,
