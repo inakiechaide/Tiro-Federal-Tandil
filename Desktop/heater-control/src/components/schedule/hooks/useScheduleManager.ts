@@ -65,18 +65,38 @@ export const useScheduleManager = ({
   const hasTimeOverlap = useCallback((schedule1: Schedule, schedule2: Schedule) => {
     if (schedule1.id === schedule2.id) return false;
 
-    const daysOverlap = Object.entries(schedule1.days).some(
-      ([day, isSelected]) => isSelected && schedule2.days[day as keyof WeekDays]
+    // Verificar si hay al menos un día en común que esté seleccionado en AMBAS programaciones
+    const commonDays = Object.keys(schedule1.days).filter(day => 
+      schedule1.days[day as keyof WeekDays] && 
+      schedule2.days[day as keyof WeekDays]
     );
 
-    if (!daysOverlap) return false;
+    // Si no hay días en común, no hay superposición
+    if (commonDays.length === 0) return false;
 
+    // Convertir horas a minutos para comparación
     const start1 = convertToMinutes(schedule1.startTime);
     const end1 = convertToMinutes(schedule1.endTime);
     const start2 = convertToMinutes(schedule2.startTime);
     const end2 = convertToMinutes(schedule2.endTime);
 
-    return start1 < end2 && end1 > start2;
+    // Verificar superposición de horarios
+    // Caso 1: El inicio de schedule1 está dentro de schedule2
+    // Caso 2: El final de schedule1 está dentro de schedule2
+    // Caso 3: schedule1 contiene completamente a schedule2
+    const isOverlapping = (start1 < end2 && end1 > start2);
+
+    // Si hay superposición, mostrar información de depuración
+    if (isOverlapping) {
+      console.log('Conflicto detectado:', {
+        schedule1: { start: schedule1.startTime, end: schedule1.endTime, days: schedule1.days },
+        schedule2: { start: schedule2.startTime, end: schedule2.endTime, days: schedule2.days },
+        commonDays,
+        timeOverlap: isOverlapping
+      });
+    }
+
+    return isOverlapping;
   }, []);
 
   // Convert time to minutes
@@ -139,8 +159,20 @@ export const useScheduleManager = ({
       return;
     }
 
+    // Validar que haya al menos un día seleccionado
+    const selectedDayCount = Object.values(selectedDays).filter(Boolean).length;
+    if (selectedDayCount === 0) {
+      toastInstance({
+        title: 'Error',
+        description: 'Por favor, selecciona al menos un día',
+        status: 'error',
+        duration: TOAST_DURATION,
+        isClosable: true
+      });
+      return;
+    }
+
     // Crear el nuevo schedule con los días seleccionados
-    // Si no hay días seleccionados, se guarda con un objeto vacío
     const newSchedule: Schedule = {
       id: Date.now(),
       mode: mode,
@@ -149,21 +181,73 @@ export const useScheduleManager = ({
       type: mode === 'auto' ? 'temp' : 'mode',
       startTime: startTime,
       endTime: endTime,
-      days: { ...selectedDays } // Puede estar vacío si no hay días seleccionados
+      days: { ...selectedDays }
     };
 
-    // Verificar conflictos
-    const hasConflict = localSchedules.some(schedule => 
-      hasTimeOverlap(schedule, newSchedule)
-    );
+    // Verificar conflictos con programaciones existentes
+    const conflict = localSchedules.some(existingSchedule => {
+      // Verificar si hay al menos un día en común
+      const commonDays = Object.keys(selectedDays).filter(day => 
+        selectedDays[day as keyof WeekDays] && 
+        existingSchedule.days[day as keyof WeekDays]
+      );
+      
+      if (commonDays.length === 0) return false;
+      
+      // Convertir horas a minutos para comparación
+      const newStart = convertToMinutes(startTime);
+      const newEnd = convertToMinutes(endTime);
+      const existingStart = convertToMinutes(existingSchedule.startTime);
+      const existingEnd = convertToMinutes(existingSchedule.endTime);
+      
+      // Verificar superposición de horarios
+      const timeOverlap = newStart < existingEnd && newEnd > existingStart;
+      
+      // Solo es conflicto si hay superposición de tiempo Y días en común
+      return timeOverlap;
+    });
 
-    if (hasConflict) {
+    if (conflict) {
+      // Encontrar los días en conflicto
+      const conflictingSchedules = localSchedules.filter(schedule => {
+        const commonDays = Object.keys(selectedDays).filter(day => 
+          selectedDays[day as keyof WeekDays] && 
+          schedule.days[day as keyof WeekDays]
+        );
+        
+        if (commonDays.length === 0) return false;
+        
+        const newStart = convertToMinutes(startTime);
+        const newEnd = convertToMinutes(endTime);
+        const existingStart = convertToMinutes(schedule.startTime);
+        const existingEnd = convertToMinutes(schedule.endTime);
+        
+        return newStart < existingEnd && newEnd > existingStart;
+      });
+      
+      // Obtener los días en conflicto
+      const conflictingDays = new Set<string>();
+      
+      conflictingSchedules.forEach(schedule => {
+        Object.keys(selectedDays).forEach(day => {
+          if (selectedDays[day as keyof WeekDays] && schedule.days[day as keyof WeekDays]) {
+            const dayInfo = WEEK_DAYS.find(d => d.id === day);
+            if (dayInfo) {
+              conflictingDays.add(dayInfo.fullLabel);
+            }
+          }
+        });
+      });
+      
+      const dayList = Array.from(conflictingDays).join(', ');
+      
       toastInstance({
         title: 'Conflicto de horario',
-        description: 'Ya existe una programación en ese horario',
+        description: `Ya existe una programación para el horario ${startTime} - ${endTime} en los días: ${dayList}. Por favor, elija otro horario o modifique los días.`,
         status: 'error',
         duration: TOAST_DURATION,
         isClosable: true,
+        position: 'top',
       });
       return;
     }

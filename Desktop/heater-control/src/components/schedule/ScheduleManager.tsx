@@ -378,25 +378,144 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({
   };
 
   /**
+   * Convierte una hora en formato 'HH:MM' a minutos desde la medianoche
+   * @param {string} time - Hora en formato 'HH:MM'
+   * @returns {number} Minutos desde la medianoche
+   */
+  const timeToMinutes = (time: string): number => {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  /**
+   * Verifica si hay conflicto entre dos horarios
+   * @param {string} start1 - Hora de inicio 1
+   * @param {string} end1 - Hora de fin 1
+   * @param {string} start2 - Hora de inicio 2
+   * @param {string} end2 - Hora de fin 2
+   * @returns {boolean} True si hay conflicto
+   */
+  const hasTimeConflict = (start1: string, end1: string, start2: string, end2: string): boolean => {
+    const s1 = timeToMinutes(start1);
+    const e1 = timeToMinutes(end1);
+    const s2 = timeToMinutes(start2);
+    const e2 = timeToMinutes(end2);
+    return s1 < e2 && e1 > s2;
+  };
+
+  /**
+   * Verifica si hay días en común entre dos programaciones
+   * @param {Record<string, boolean>} days1 - Días de la primera programación
+   * @param {Record<string, boolean>} days2 - Días de la segunda programación
+   * @returns {string[]} Array con los IDs de los días en común
+   */
+  const getCommonDays = (days1: Record<string, boolean>, days2: Record<string, boolean>): string[] => {
+    return Object.entries(days1)
+      .filter(([day, isSelected]) => isSelected && days2[day])
+      .map(([day]) => day);
+  };
+
+  /**
    * Agrega una nueva programación o actualiza una existente
    */
   const handleAddSchedule = async () => {
     try {
       setIsSubmitting(true);
       
+      // Si no se seleccionó ningún día, usar el día actual
+      const daysToUse = { ...selectedDays };
+      let isAutoDaySelected = false;
+      let autoSelectedDayId = '';
+      
+      const selectedDayCount = Object.values(daysToUse).filter(Boolean).length;
+      
+      if (selectedDayCount === 0) {
+        // Obtener el día actual (0 = domingo, 1 = lunes, etc.)
+        const today = new Date().getDay();
+        // Convertir a nuestra convención de días (lunes = 0, domingo = 6)
+        const dayIndex = today === 0 ? 6 : today - 1;
+        autoSelectedDayId = WEEK_DAYS[dayIndex].id;
+        
+        // Establecer el día actual como seleccionado
+        daysToUse[autoSelectedDayId] = true;
+        isAutoDaySelected = true;
+        
+        // Mostrar notificación informativa
+        toast({
+          title: 'Día actual seleccionado',
+          description: `Se ha programado para hoy (${WEEK_DAYS[dayIndex].fullLabel})`,
+          status: 'info',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+
       const newSchedule: Schedule = {
         id: editingId || Date.now(),
         startTime,
         endTime,
         mode: selectedOption,
         ...(selectedOption === 'auto' && { targetTemp }),
-        days: { ...selectedDays }
+        days: { ...daysToUse }
       };
+
+      // Verificar conflictos con programaciones existentes
+      const conflict = localSchedules.some(schedule => {
+        // No comparar con la programación que se está editando
+        if (editingId && schedule.id === editingId) return false;
+        
+        // Verificar días en común
+        const commonDays = isAutoDaySelected 
+          ? [autoSelectedDayId] 
+          : getCommonDays(daysToUse, schedule.days);
+          
+        if (commonDays.length === 0) return false;
+        
+        // Verificar conflicto de horarios
+        return hasTimeConflict(
+          startTime,
+          endTime,
+          schedule.startTime,
+          schedule.endTime
+        );
+      });
+
+      if (conflict) {
+        // Obtener los días en conflicto para el mensaje
+        const conflictingDays = new Set<string>();
+        
+        localSchedules.forEach(schedule => {
+          const commonDays = isAutoDaySelected 
+            ? [autoSelectedDayId]
+            : getCommonDays(daysToUse, schedule.days);
+            
+          if (commonDays.length === 0) return;
+          
+          if (hasTimeConflict(startTime, endTime, schedule.startTime, schedule.endTime)) {
+            commonDays.forEach(day => {
+              const dayInfo = WEEK_DAYS.find(d => d.id === day);
+              if (dayInfo) {
+                conflictingDays.add(dayInfo.fullLabel);
+              }
+            });
+          }
+        });
+        
+        toast({
+          title: 'Conflicto de horario',
+          description: `Ya existe una programación para el horario ${startTime} - ${endTime} en los días: ${Array.from(conflictingDays).join(', ')}.`,
+          status: 'error',
+          duration: 6000,
+          isClosable: true,
+          position: 'top',
+        });
+        return;
+      }
 
       let updatedSchedules;
       
       if (editingId) {
-        // Update existing schedule
+        // Actualizar programación existente
         updatedSchedules = localSchedules.map(sched => 
           sched.id === editingId ? newSchedule : sched
         );
@@ -409,7 +528,7 @@ const ScheduleManager: React.FC<ScheduleManagerProps> = ({
           isClosable: true,
         });
       } else {
-        // Add new schedule
+        // Agregar nueva programación
         updatedSchedules = [...localSchedules, newSchedule];
         setLocalSchedules(updatedSchedules);
         toast({
