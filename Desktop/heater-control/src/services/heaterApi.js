@@ -13,7 +13,12 @@ let simulatedState = {
 };
 
 // Hacer que el estado simulado esté disponible globalmente para depuración
-window.simulatedState = simulatedState;
+if (typeof window !== 'undefined') {
+  window.simulatedState = simulatedState;
+  console.log('[ESP32 SIMULATION] Estado inicial simulado:', window.simulatedState);
+} else {
+  console.log('[ESP32 SIMULATION] No se puede asignar estado simulado (entorno no es navegador)');
+}
 
 // Función para simular cambios en la temperatura basados en el modo
 const updateSimulatedTemperature = () => {
@@ -99,6 +104,13 @@ const apiRequest = async (endpoint, method = 'GET', data = null) => {
     'Content-Type': 'application/json',
   };
 
+  // Log de la petición
+  console.log('[ESP32 API] Realizando petición:', {
+    method,
+    url,
+    data: data ? JSON.stringify(data) : 'No data'
+  });
+
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
@@ -123,13 +135,26 @@ const apiRequest = async (endpoint, method = 'GET', data = null) => {
     // Algunos endpoints pueden no devolver contenido
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
-      return await response.json();
+      const responseData = await response.json();
+      console.log('[ESP32 API] Respuesta recibida:', {
+        status: response.status,
+        data: responseData
+      });
+      return responseData;
     }
     
-    return await response.text();
+    const responseData = await response.text();
+    console.log('[ESP32 API] Respuesta recibida:', {
+      status: response.status,
+      data: responseData
+    });
+    return responseData;
   } catch (error) {
     clearTimeout(timeoutId);
-    console.error('Error en la petición:', error);
+    console.error('[ESP32 API] Error en la petición:', {
+      error: error.message,
+      type: error.name === 'AbortError' ? 'Timeout' : 'Error de conexión'
+    });
     
     if (error.name === 'AbortError') {
       throw new Error('Tiempo de espera agotado. Verifica la conexión con el calefactor.');
@@ -147,17 +172,33 @@ export const heaterApi = {
    */
   getStatus: async () => {
     if (SIMULATION_MODE) {
-      // Retornar estado simulado
+      // Log de la petición simulada
+      console.log('[ESP32 SIMULATION] Petición simulada:', {
+        endpoint: '/status',
+        method: 'GET'
+      });
+      
+      // Log del estado simulado actual
+      console.log('[ESP32 SIMULATION] Estado simulado actual:', {
+        mode: simulatedState.mode,
+        temperature: simulatedState.temperature,
+        battery: simulatedState.battery,
+        wifiStrength: simulatedState.wifiStrength
+      });
+      
       return new Promise(resolve => {
         setTimeout(() => {
-          resolve({
+          const response = {
             ...simulatedState,
             timestamp: new Date().toISOString()
-          });
+          };
+          console.log('[ESP32 SIMULATION] Respuesta simulada:', response);
+          resolve(response);
         }, 300); // Pequeño retraso para simular latencia de red
       });
+    } else {
+      return apiRequest('/status');
     }
-    return apiRequest('/status');
   },
 
   /**
@@ -167,18 +208,46 @@ export const heaterApi = {
    */
   setMode: async (mode) => {
     if (SIMULATION_MODE) {
-      // Actualizar modo en la simulación
-      simulatedState.mode = mode;
-      return new Promise(resolve => {
-        setTimeout(() => {
-          resolve({
-            success: true,
-            message: `Modo cambiado a ${mode}`,
-            mode
-          });
-        }, 300);
-      });
+      try {
+        // Log de la petición simulada
+        console.log('[ESP32 SIMULATION] Petición simulada:', {
+          endpoint: '/set-mode',
+          method: 'POST',
+          data: mode
+        });
+
+        // Actualizar modo en la simulación
+        simulatedState.mode = mode;
+
+        // Log del estado simulado
+        console.log('[ESP32 SIMULATION] Estado simulado actualizado:', {
+          mode: simulatedState.mode,
+          temperature: simulatedState.temperature,
+          battery: simulatedState.battery,
+          wifiStrength: simulatedState.wifiStrength
+        });
+
+        // Simular respuesta del servidor
+        const response = {
+          success: true,
+          message: `Modo cambiado a ${mode}`,
+          mode,
+          temperature: simulatedState.temperature,
+          battery: simulatedState.battery,
+          wifiStrength: simulatedState.wifiStrength
+        };
+
+        // Retraso para simular latencia de red
+        await new Promise(resolve => setTimeout(resolve, 300));
+
+        console.log('[ESP32 SIMULATION] Respuesta simulada:', response);
+        return response;
+      } catch (error) {
+        console.error('[ESP32 SIMULATION] Error en la petición:', error);
+        throw error;
+      }
     }
+
     return apiRequest('/mode', 'POST', { mode });
   },
 

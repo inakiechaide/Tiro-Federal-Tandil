@@ -6,7 +6,7 @@ import {
   Checkbox, IconButton, useColorModeValue, RadioGroup, Radio, Stack, Select,
   useToast
 } from '@chakra-ui/react';
-import { FaPlus, FaTrash } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaPowerOff, FaSnowflake, FaFire, FaMagic, FaLeaf, FaSun } from 'react-icons/fa';
 
 const WEEK_DAYS = [
   { id: 'monday', label: 'L', fullLabel: 'Lunes', fullLabelShort: 'Lun' },
@@ -18,11 +18,74 @@ const WEEK_DAYS = [
   { id: 'sunday', label: 'D', fullLabel: 'Domingo', fullLabelShort: 'Dom' }
 ];
 
+
+
 const MODES = {
-  off: { label: 'Apagado', color: 'gray' },
-  min: { label: 'Mínimo', color: 'blue' },
-  max: { label: 'Máximo', color: 'red' },
-  auto: { label: 'Automático', color: 'green' }
+  off: { 
+    label: 'Apagado', 
+    color: 'gray', 
+    icon: <FaPowerOff />,
+    bgColor: 'gray.100',
+    hoverBg: 'gray.200',
+    textColor: 'gray.800',
+    darkBg: 'gray.700',
+    darkHover: 'gray.600',
+    darkText: 'gray.200',
+    borderColor: 'gray.300',
+    darkBorder: 'gray.500'
+  },
+  pilot: {
+    label: 'Piloto',
+    color: 'cyan',
+    icon: <FaSun />,
+    bgColor: 'cyan.100',
+    hoverBg: 'cyan.200',
+    textColor: 'cyan.800',
+    darkBg: 'cyan.900',
+    darkHover: 'cyan.800',
+    darkText: 'cyan.100',
+    borderColor: 'cyan.300',
+    darkBorder: 'cyan.500'
+  },
+  min: { 
+    label: 'Mínimo', 
+    color: 'green', 
+    icon: <FaSnowflake />,
+    bgColor: 'green.100',
+    hoverBg: 'green.200',
+    textColor: 'green.800',
+    darkBg: 'green.900',
+    darkHover: 'green.800',
+    darkText: 'green.100',
+    borderColor: 'green.300',
+    darkBorder: 'green.500'
+  },
+  max: { 
+    label: 'Máximo', 
+    color: 'red', 
+    icon: <FaFire />,
+    bgColor: 'red.100',
+    hoverBg: 'red.200',
+    textColor: 'red.800',
+    darkBg: 'red.900',
+    darkHover: 'red.800',
+    darkText: 'red.100',
+    borderColor: 'red.300',
+    darkBorder: 'red.500'
+  }
+};
+
+const AUTO_MODE = { 
+  label: 'Automático', 
+  color: 'purple',
+  bgColor: 'white',
+  hoverBg: 'purple.50',
+  textColor: 'purple.800',
+  darkBg: 'gray.800',
+  darkHover: 'purple.900',
+  darkText: 'purple.100',
+  borderColor: 'purple.200',
+  darkBorder: 'purple.600'
 };
 
 const ScheduleManager = ({ isOpen, onClose, onSave, schedules = [] }) => {
@@ -44,13 +107,24 @@ const ScheduleManager = ({ isOpen, onClose, onSave, schedules = [] }) => {
   const toast = useToast();
   const cardBg = useColorModeValue('white', 'gray.800');
   const borderColor = useColorModeValue('gray.200', 'gray.600');
-  const textColor = useColorModeValue('gray.700', 'gray.200');
-  const mutedTextColor = useColorModeValue('gray.500', 'gray.400');
+  const textColor = useColorModeValue('gray.800', 'whiteAlpha.900');
+  const mutedTextColor = useColorModeValue('gray.600', 'gray.300');
   const primaryColor = useColorModeValue('blue.500', 'blue.300');
   const hoverBg = useColorModeValue('blue.50', 'blue.900');
-  const activeBg = useColorModeValue('blue.100', 'blue.800');
-  const daySelectedBg = useColorModeValue('blue.100', 'blue.900');
+  const headerBg = useColorModeValue('blue.600', 'blue.700');
+  const headerTextColor = 'white';
+  const buttonPrimary = useColorModeValue('blue.500', 'blue.400');
+  const buttonHover = useColorModeValue('blue.600', 'blue.300');
+  const buttonActive = useColorModeValue('blue.700', 'blue.200');
+  const dangerColor = useColorModeValue('red.500', 'red.400');
+  const dangerHover = useColorModeValue('red.600', 'red.300');
+  const successColor = useColorModeValue('green.500', 'green.400');
+  const inputBg = useColorModeValue('white', 'gray.700');
+  const inputBorder = useColorModeValue('gray.300', 'gray.500');
+  const daySelectedBg = useColorModeValue('blue.100', 'blue.700');
+  const daySelectedColor = useColorModeValue('blue.700', 'blue.100');
   const dayHoverBg = useColorModeValue('blue.50', 'blue.800');
+  const activeBg = useColorModeValue('blue.100', 'blue.800');
 
   // Sync with props
   useEffect(() => {
@@ -154,16 +228,9 @@ const ScheduleManager = ({ isOpen, onClose, onSave, schedules = [] }) => {
       return;
     }
     
-    // Validar que se haya seleccionado un modo de operación
-    if (!['off', 'pilot', 'min', 'max', 'temp'].includes(selectedOption)) {
-      toast({
-        title: 'Error',
-        description: 'Selecciona un modo de operación',
-        status: 'error',
-        duration: 4000,
-        isClosable: true,
-      });
-      return;
+    // Si hay temperatura, forzar modo automático
+    if (targetTemp !== 21) {
+      setSelectedOption('auto');
     }
     
     // Obtener el día actual (0=Domingo, 1=Lunes, ..., 6=Sábado)
@@ -253,20 +320,22 @@ const ScheduleManager = ({ isOpen, onClose, onSave, schedules = [] }) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} size="xl">
-      <ModalOverlay bg="blackAlpha.600" />
+    <Modal isOpen={isOpen} onClose={onClose} size="xl" isCentered>
+      <ModalOverlay bg="blackAlpha.600" backdropFilter="blur(4px)" />
       <ModalContent 
-        borderRadius="xl" 
-        boxShadow="xl"
         bg="white"
+        borderWidth="1px"
+        borderColor="gray.200"
+        boxShadow="xl"
+        borderRadius="xl"
+        overflow="hidden"
       >
         <ModalHeader 
           bg="blue.500" 
-          color="white" 
-          borderTopRadius="xl" 
+          color="white"
+          borderBottomWidth="1px"
+          borderColor="gray.200"
           py={4}
-          fontSize="xl"
-          fontWeight="bold"
         >
           Programar Calefacción
         </ModalHeader>
@@ -307,159 +376,162 @@ const ScheduleManager = ({ isOpen, onClose, onSave, schedules = [] }) => {
                     </SimpleGrid>
                   </Box>
                   
-                  <Box w="100%" mb={4}>
-                    <Box>
-                      <Text mb={3} fontSize="lg" fontWeight="semibold" color="gray.600">
-                        Modo de operación
-                      </Text>
-                      <SimpleGrid columns={2} spacing={4} mb={4}>
+                  <Box w="100%" mb={6}>
+                    <Text mb={4} fontSize="lg" fontWeight="semibold" color="gray.600">
+                      Modo de operación
+                    </Text>
+                    <SimpleGrid columns={{ base: 2, md: 4 }} spacing={3} w="100%">
+                      {Object.entries(MODES).map(([key, mode]) => (
                         <Box 
+                          key={key}
                           as="button"
-                          p={4}
-                          borderWidth="2px"
-                          borderRadius="lg"
-                          borderColor={selectedOption === 'off' ? 'blue.500' : 'gray.200'}
-                          bg={selectedOption === 'off' ? 'blue.50' : 'white'}
-                          _dark={{
-                            borderColor: selectedOption === 'off' ? 'blue.400' : 'gray.600',
-                            bg: selectedOption === 'off' ? 'blue.900' : 'gray.800'
-                          }}
-                          onClick={() => setSelectedOption('off')}
+                          p={3}
+                          borderWidth="1px"
+                          borderRadius="md"
                           textAlign="center"
+                          bg={selectedOption === key ? mode.bgColor : mode.bgColor}
+                          borderColor={mode.borderColor}
+                          color={selectedOption === key ? mode.textColor : mode.textColor}
+                          _dark={{
+                            bg: selectedOption === key ? mode.darkBg : mode.darkBg,
+                            borderColor: mode.darkBorder,
+                            color: selectedOption === key ? mode.darkText : mode.darkText
+                          }}
+                          onClick={() => setSelectedOption(key)}
+                          _hover={{
+                            bg: selectedOption === key ? mode.bgColor : mode.hoverBg,
+                            _dark: { 
+                              bg: selectedOption === key ? mode.darkBg : mode.darkHover,
+                              color: mode.darkText
+                            },
+                            transform: 'translateY(-2px)',
+                            boxShadow: 'md'
+                          }}
+                          _active={{
+                            transform: 'translateY(0)'
+                          }}
+                          transition="all 0.2s"
+                          display="flex"
+                          flexDirection="column"
+                          alignItems="center"
+                          gap={2}
                         >
-                          <Text fontWeight="bold" color={selectedOption === 'off' ? 'blue.600' : 'gray.600'}>
-                            Apagado
+                          <Box fontSize="xl">
+                            {mode.icon}
+                          </Box>
+                          <Text fontSize="sm" fontWeight="medium">
+                            {mode.label}
                           </Text>
-                          <Text fontSize="sm" color="gray.400">Apagar el calefactor</Text>
                         </Box>
-                        
-                        <Box 
-                          as="button"
-                          p={4}
-                          borderWidth="2px"
-                          borderRadius="md"
-                          borderColor={selectedOption === 'pilot' ? 'blue.500' : 'gray.200'}
-                          bg={selectedOption === 'pilot' ? 'blue.50' : 'white'}
-                          _dark={{
-                            borderColor: selectedOption === 'pilot' ? 'blue.400' : 'gray.600',
-                            bg: selectedOption === 'pilot' ? 'blue.900' : 'gray.800'
-                          }}
-                          onClick={() => setSelectedOption('pilot')}
-                          textAlign="center"
+                      ))}
+                    </SimpleGrid>
+                  </Box>
+                  
+                  <Box 
+                    w="100%" 
+                    mt={6} 
+                    pt={4} 
+                    borderTopWidth="1px" 
+                    borderRadius="md"
+                    p={4}
+                    onClick={() => setSelectedOption('auto')}
+                    cursor="pointer"
+                    transition="all 0.2s"
+                    _hover={{
+                      transform: 'translateY(-2px)',
+                      boxShadow: 'md',
+                      bg: 'purple.50'
+                    }}
+                    borderColor={selectedOption === 'auto' ? 'purple.300' : 'gray.200'}
+                    bg={selectedOption === 'auto' ? 'purple.50' : 'transparent'}
+                    _dark={{
+                      borderColor: selectedOption === 'auto' ? 'purple.500' : 'gray.600',
+                      bg: selectedOption === 'auto' ? 'purple.900' : 'transparent'
+                    }}
+                  >
+                    <Text mb={4} fontSize="lg" fontWeight="semibold" color={selectedOption === 'auto' ? 'purple.800' : 'gray.600'} _dark={{ color: selectedOption === 'auto' ? 'purple.100' : 'gray.300' }}>
+                      Automático: {targetTemp}°C
+                    </Text>
+                    <Box px={2}>
+                      <Slider
+                        value={targetTemp}
+                        min={15}
+                        max={30}
+                        step={0.5}
+                        onChange={(value) => {
+                          setSelectedOption('auto');
+                          setTargetTemp(value);
+                        }}
+                        onFocus={() => setSelectedOption('auto')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedOption('auto');
+                        }}
+                        focusThumbOnChange={false}
+                      >
+                        <SliderTrack 
+                          bg="gray.200"
+                          h="8px"
+                          borderRadius="full"
+                          _dark={{ bg: 'gray.600' }}
                         >
-                          <Text fontWeight="bold">Piloto</Text>
-                          <Text fontSize="sm">Modo de espera</Text>
-                        </Box>
-                        
-                        <Box 
-                          as="button"
-                          p={4}
+                          <SliderFilledTrack 
+                            bg="purple.500"
+                            _dark={{ bg: 'purple.400' }}
+                          />
+                        </SliderTrack>
+                        <SliderThumb 
+                          boxSize={5}
                           borderWidth="2px"
-                          borderRadius="md"
-                          borderColor={selectedOption === 'min' ? 'blue.500' : 'gray.200'}
-                          bg={selectedOption === 'min' ? 'blue.50' : 'white'}
-                          _dark={{
-                            borderColor: selectedOption === 'min' ? 'blue.400' : 'gray.600',
-                            bg: selectedOption === 'min' ? 'blue.900' : 'gray.800'
-                          }}
-                          onClick={() => setSelectedOption('min')}
-                          textAlign="center"
-                        >
-                          <Text fontWeight="bold">Mínimo</Text>
-                          <Text fontSize="sm">Calefacción mínima</Text>
-                        </Box>
-                        
-                        <Box 
-                          as="button"
-                          p={4}
-                          borderWidth="2px"
-                          borderRadius="md"
-                          borderColor={selectedOption === 'max' ? 'blue.500' : 'gray.200'}
-                          bg={selectedOption === 'max' ? 'blue.50' : 'white'}
-                          _dark={{
-                            borderColor: selectedOption === 'max' ? 'blue.400' : 'gray.600',
-                            bg: selectedOption === 'max' ? 'blue.900' : 'gray.800'
-                          }}
-                          onClick={() => setSelectedOption('max')}
-                          textAlign="center"
-                        >
-                          <Text fontWeight="bold">Máximo</Text>
-                          <Text fontSize="sm">Calefacción máxima</Text>
-                        </Box>
-                      </SimpleGrid>
-                      
-                      <Box w="100%" mt={6} pt={4} borderTopWidth="1px" borderColor="gray.200">
-                        <Text mb={4} fontSize="lg" fontWeight="semibold" color="gray.600">
-                          Temperatura específica: {targetTemp}°C
-                        </Text>
-                        
-                        <Box px={2}>
-                          <Slider
-                            value={targetTemp}
-                            min={15}
-                            max={30}
-                            step={0.5}
-                            onChange={(value) => {
-                              setSelectedOption('temp');
-                              setTargetTemp(value);
-                            }}
-                            onFocus={() => setSelectedOption('temp')}
-                            onClick={() => setSelectedOption('temp')}
-                            focusThumbOnChange={false}
-                          >
-                            <SliderTrack bg="gray.200" _dark={{ bg: 'gray.600' }} h="8px" borderRadius="full">
-                              <SliderFilledTrack bg="blue.500" />
-                            </SliderTrack>
-                            <SliderThumb 
-                              boxSize={5} 
-                              borderWidth="2px"
-                              borderColor="blue.500"
-                              _focus={{ boxShadow: 'none' }}
-                              _active={{ transform: 'scale(1.1)' }}
-                            />
-                          </Slider>
-                          <Flex justify="space-between" mt={2} color="gray.400" fontSize="sm">
-                            <Text>15°C</Text>
-                            <Text>30°C</Text>
-                          </Flex>
-                        </Box>
-                      </Box>
+                          borderColor="purple.500"
+                          _dark={{ borderColor: 'purple.300' }}
+                          _focus={{ boxShadow: 'none' }}
+                          _active={{ transform: 'scale(1.1)' }}
+                        />
+                      </Slider>
+                      <Flex justify="space-between" mt={2} color="gray.400" fontSize="sm">
+                        <Text>15°C</Text>
+                        <Text>30°C</Text>
+                      </Flex>
                     </Box>
                   </Box>
                   
                   <Box w="100%">
-                    <Text mb={3} fontSize="lg" fontWeight="semibold" color="gray.600">
-                      Días de la semana
-                    </Text>
-                    <Wrap spacing={2}>
-                      {WEEK_DAYS.map((day) => (
-                        <WrapItem key={day.id}>
-                          <Box
-                            as="button"
-                            px={4}
-                            py={2}
-                            borderRadius="lg"
-                            borderWidth="1px"
-                            borderColor={selectedDays[day.id] ? 'blue.500' : 'gray.200'}
-                            bg={selectedDays[day.id] ? 'blue.50' : 'white'}
-                            color={selectedDays[day.id] ? 'blue.600' : 'gray.600'}
-                            fontWeight={selectedDays[day.id] ? 'semibold' : 'normal'}
-                            onClick={() => handleDayToggle(day.id)}
-                            _hover={{
-                              bg: selectedDays[day.id] ? 'blue.100' : 'gray.100',
-                              borderColor: 'blue.500',
-                              transform: 'translateY(-2px)'
-                            }}
-                            _active={{
-                              transform: 'translateY(0)'
-                            }}
-                            transition="all 0.2s"
-                          >
-                            <Text>{day.label}</Text>
-                          </Box>
-                        </WrapItem>
-                      ))}
-                    </Wrap>
+                    <Box mb={6}>
+                      <Text fontSize="sm" fontWeight="medium" mb={2} color="gray.600">
+                        Días de la semana
+                      </Text>
+                      <Wrap spacing={2}>
+                        {WEEK_DAYS.map(day => {
+                          const isSelected = selectedDays[day.id];
+                          return (
+                            <WrapItem key={day.id}>
+                              <Button
+                                size="sm"
+                                variant={isSelected ? 'solid' : 'outline'}
+                                colorScheme={isSelected ? 'blue' : 'gray'}
+                                onClick={() => handleDayToggle(day.id)}
+                                borderRadius="md"
+                                fontWeight="medium"
+                                minW="2.5rem"
+                                px={3}
+                                _hover={{
+                                  bg: isSelected ? 'blue.600' : 'gray.100',
+                                  transform: 'translateY(-1px)',
+                                  boxShadow: 'sm'
+                                }}
+                                _active={{
+                                  transform: 'translateY(0)'
+                                }}
+                                transition="all 0.2s"
+                              >
+                                {day.label}
+                              </Button>
+                            </WrapItem>
+                          );
+                        })}
+                      </Wrap>
+                    </Box>
                     <Text mt={2} fontSize="sm" color="gray.400" fontStyle="italic">
                       {Object.values(selectedDays).some(day => day) 
                         ? 'Selecciona los días para esta programación' 
@@ -522,27 +594,42 @@ const ScheduleManager = ({ isOpen, onClose, onSave, schedules = [] }) => {
                             
                             <Box 
                               display="inline-block" 
-                              bg={schedule.type === 'temp' ? 'blue.50' : 'purple.50'}
+                              bg={schedule.type === 'temp' ? 'blue.50' : 
+                                 schedule.mode === 'on' ? 'red.50' : 
+                                 schedule.mode === 'off' ? 'gray.50' : 'purple.50'}
                               _dark={{
-                                bg: schedule.type === 'temp' ? 'blue.900' : 'purple.900'
+                                bg: schedule.type === 'temp' ? 'blue.900' : 
+                                   schedule.mode === 'on' ? 'red.900' : 
+                                   schedule.mode === 'off' ? 'gray.800' : 'purple.900'
                               }}
                               px={2} 
                               py={1} 
                               borderRadius="md"
                               mb={2}
                             >
-                              <Text 
-                                fontSize="sm" 
-                                color={schedule.type === 'temp' ? 'blue.600' : 'purple.600'}
-                                _dark={{
-                                  color: schedule.type === 'temp' ? 'blue.200' : 'purple.200'
-                                }}
-                                fontWeight="medium"
-                              >
-                                {schedule.type === 'temp' 
-                                  ? `🌡️ ${schedule.temperature}°C` 
-                                  : `⚙️ ${schedule.mode.charAt(0).toUpperCase() + schedule.mode.slice(1)}`}
-                              </Text>
+                              <Flex align="center" gap={1}>
+                                <Box fontSize="md">
+                                  {schedule.type === 'temp' ? '🌡️' : 
+                                   schedule.mode === 'on' ? '🔥' : 
+                                   schedule.mode === 'off' ? '❄️' : '⚙️'}
+                                </Box>
+                                <Text 
+                                  fontSize="sm" 
+                                  color={schedule.type === 'temp' ? 'blue.600' : 
+                                         schedule.mode === 'on' ? 'red.600' : 
+                                         schedule.mode === 'off' ? 'gray.600' : 'purple.600'}
+                                  _dark={{
+                                    color: schedule.type === 'temp' ? 'blue.200' : 
+                                           schedule.mode === 'on' ? 'red.200' : 
+                                           schedule.mode === 'off' ? 'gray.200' : 'purple.200'
+                                  }}
+                                  fontWeight="medium"
+                                >
+                                  {schedule.type === 'temp' 
+                                    ? `Auto (${schedule.temperature}°C)`
+                                    : `${schedule.mode.charAt(0).toUpperCase() + schedule.mode.slice(1)}`}
+                                </Text>
+                              </Flex>
                             </Box>
                             
                             <Flex wrap="wrap" gap={1} mt={2}>
@@ -590,30 +677,6 @@ const ScheduleManager = ({ isOpen, onClose, onSave, schedules = [] }) => {
           <Button 
             variant="outline" 
             mr={3} 
-            onClick={onClose}
-            borderColor="gray.200"
-            _hover={{
-              borderColor: 'blue.500',
-              color: 'blue.500',
-              bg: 'transparent'
-            }}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            bg="blue.500"
-            _hover={{
-              bg: 'blue.600',
-              transform: 'translateY(-2px)',
-              boxShadow: 'md'
-            }}
-            _active={{
-              bg: 'blue.700',
-              transform: 'translateY(0)'
-            }}
-            color="white"
-            onClick={handleSaveSchedules}
-            isDisabled={localSchedules.length === 0 || isSubmitting}
             isLoading={isSubmitting}
             loadingText="Guardando..."
             transition="all 0.2s"

@@ -46,7 +46,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { WiThermometerExterior, WiThermometer, WiThermometerInternal } from 'react-icons/wi';
 import { heaterApi, SIMULATION_MODE } from './services/heaterApi';
-import ScheduleManager from './components/ScheduleManager';
+import { ScheduleManager } from './components/schedule';
 
 // Definición de los modos de operación para calefacción a gas
 const MODES = [
@@ -317,10 +317,14 @@ function App() {
       // Actualizar el estado local
       setMode(newMode);
       
-      // En modo simulación, actualizar el estado simulado directamente
-      if (SIMULATION_MODE && window.simulatedState) {
-        window.simulatedState.mode = newMode;
-      } else if (!SIMULATION_MODE) {
+      // En modo simulación, llamar a heaterApi.setMode para obtener logs
+      if (SIMULATION_MODE) {
+        heaterApi.setMode(newMode).catch(console.error);
+        // También actualizar el estado simulado
+        if (window.simulatedState) {
+          window.simulatedState.mode = newMode;
+        }
+      } else {
         // En entorno real, llamar a la API
         heaterApi.setMode(newMode).catch(console.error);
       }
@@ -357,15 +361,24 @@ function App() {
     if (newMode === mode || isLoading) return;
     
     setIsLoading(true);
+    console.log('[APP] Iniciando cambio de modo:', { 
+      currentMode: mode, 
+      newMode, 
+      isLoading 
+    });
     
     try {
       // Si el modo es 'off', desactivar el control automático
       if (newMode === 'off') {
         setAutoTempControl(false);
+        console.log('[APP] Desactivando control automático al cambiar a modo OFF');
       }
       
       // Actualizar el modo
+      console.log('[APP] Llamando a heaterApi.setMode:', newMode);
       await heaterApi.setMode(newMode);
+      
+      console.log('[APP] Actualizando estado local con nuevo modo:', newMode);
       setMode(newMode);
       
       // Solo mostrar notificación del cambio de modo, sin cambiar la temperatura objetivo
@@ -377,6 +390,7 @@ function App() {
       });
       
       // Actualizar el estado
+      console.log('[APP] Actualizando estado completo...');
       await fetchStatus();
     } catch (err) {
       console.error('Error al cambiar el modo:', err);
